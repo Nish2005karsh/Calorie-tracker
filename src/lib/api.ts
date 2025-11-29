@@ -34,8 +34,8 @@ export interface UserProfile {
 }
 
 // Fetch all meals for a specific date
-export const fetchDailyMeals = async (userId: string, date: string) => {
-    const { data, error } = await supabase
+export const fetchDailyMeals = async (client: any, userId: string, date: string) => {
+    const { data, error } = await client
         .from('daily_meals')
         .select('*')
         .eq('user_id', userId)
@@ -50,8 +50,8 @@ export const fetchDailyMeals = async (userId: string, date: string) => {
 };
 
 // Add a new meal
-export const addMeal = async (userId: string, meal: Omit<Meal, 'user_id'>) => {
-    const { data, error } = await supabase
+export const addMeal = async (client: any, userId: string, meal: Omit<Meal, 'user_id'>) => {
+    const { data, error } = await client
         .from('daily_meals')
         .insert([
             {
@@ -71,8 +71,8 @@ export const addMeal = async (userId: string, meal: Omit<Meal, 'user_id'>) => {
 };
 
 // Delete a meal
-export const deleteMeal = async (mealId: string) => {
-    const { error } = await supabase
+export const deleteMeal = async (client: any, mealId: string) => {
+    const { error } = await client
         .from('daily_meals')
         .delete()
         .eq('id', mealId);
@@ -84,8 +84,8 @@ export const deleteMeal = async (mealId: string) => {
 };
 
 // Update a meal
-export const updateMeal = async (mealId: string, updates: Partial<Meal>) => {
-    const { data, error } = await supabase
+export const updateMeal = async (client: any, mealId: string, updates: Partial<Meal>) => {
+    const { data, error } = await client
         .from('daily_meals')
         .update(updates)
         .eq('id', mealId)
@@ -101,8 +101,8 @@ export const updateMeal = async (mealId: string, updates: Partial<Meal>) => {
 };
 
 // Fetch user profile
-export const fetchUserProfile = async (userId: string) => {
-    const { data, error } = await supabase
+export const fetchUserProfile = async (client: any, userId: string) => {
+    const { data, error } = await client
         .from('user_profiles')
         .select('*')
         .eq('user_id', userId)
@@ -117,9 +117,9 @@ export const fetchUserProfile = async (userId: string) => {
 };
 
 // Create or update user profile
-export const updateUserProfile = async (userId: string, updates: Partial<UserProfile>) => {
+export const updateUserProfile = async (client: any, userId: string, updates: Partial<UserProfile>) => {
     // Check if profile exists
-    const { data: existingProfile } = await supabase
+    const { data: existingProfile } = await client
         .from('user_profiles')
         .select('id')
         .eq('user_id', userId)
@@ -129,7 +129,7 @@ export const updateUserProfile = async (userId: string, updates: Partial<UserPro
 
     if (existingProfile) {
         // Update
-        ({ data, error } = await supabase
+        ({ data, error } = await client
             .from('user_profiles')
             .update(updates)
             .eq('user_id', userId)
@@ -137,7 +137,7 @@ export const updateUserProfile = async (userId: string, updates: Partial<UserPro
             .single());
     } else {
         // Insert
-        ({ data, error } = await supabase
+        ({ data, error } = await client
             .from('user_profiles')
             .insert([
                 {

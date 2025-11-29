@@ -13,23 +13,34 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faArrowLeft, faCamera, faSearch, faSpinner, faCheck } from "@fortawesome/free-solid-svg-icons";
-import { useUser } from "@clerk/clerk-react";
+import { useUser, useAuth } from "@clerk/clerk-react";
 import { addMeal } from "@/lib/api";
+import { createAuthenticatedClient } from "@/lib/supabase";
 
 // Send image to n8n and get analysis
 const analyzeMeal = async (imageFile: File) => {
   try {
     console.log('Uploading image...');
 
-    // Create FormData (sends as binary)
-    const formData = new FormData();
-    formData.append('image', imageFile);
+    // Convert to Base64
+    const toBase64 = (file: File) => new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = error => reject(error);
+    });
 
-    // Send to n8n webhook
+    const base64Image = await toBase64(imageFile);
+
+    // Send to n8n webhook as JSON
     const response = await fetch('https://nick-moreno.app.n8n.cloud/webhook-test/fb1795ae-7290-48be-8c52-27b50eb32691', {
       method: 'POST',
-      body: formData, // ⭐ Send FormData, not JSON
-      // ⭐ Don't set Content-Type header - browser will set it automatically
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        image: base64Image,
+      }),
     });
 
     console.log('Response status:', response.status);
@@ -66,6 +77,7 @@ const analyzeMeal = async (imageFile: File) => {
 const AddMeal = () => {
   const navigate = useNavigate();
   const { user } = useUser();
+  const { getToken } = useAuth();
   const [searchParams] = useSearchParams();
   const mealType = searchParams.get("type") || "breakfast"; // Default to breakfast if not specified
   const [isDragging, setIsDragging] = useState(false);
@@ -92,7 +104,12 @@ const AddMeal = () => {
     if (analyzedMeal && user) {
       setIsSaving(true);
       try {
-        await addMeal(user.id, {
+        const token = await getToken({ template: 'supabase' });
+        if (!token) throw new Error('Failed to get Supabase token');
+
+        const supabase = createAuthenticatedClient(token);
+
+        await addMeal(supabase, user.id, {
           date: new Date().toISOString().split('T')[0],
           meal_type: mealType as any,
           meal_name: analyzedMeal.mealName,
@@ -153,9 +170,8 @@ const AddMeal = () => {
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
-              className={`mb-8 border-2 border-dashed p-12 text-center transition-all ${
-  isDragging ? "border-accent bg-accent/5" : "border-border hover:border-accent/50"
-}`}
+              className={`mb-8 border-2 border-dashed p-12 text-center transition-all ${isDragging ? "border-accent bg-accent/5" : "border-border hover:border-accent/50"
+                }`}
 
             >
               {isLoading ? (

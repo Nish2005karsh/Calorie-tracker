@@ -12,13 +12,15 @@ import {
   faSpinner,
 } from "@fortawesome/free-solid-svg-icons";
 import { useNavigate } from "react-router-dom";
-import { UserButton, useUser } from "@clerk/clerk-react";
+import { UserButton, useUser, useAuth } from "@clerk/clerk-react";
 import { useEffect, useState } from "react";
 import { fetchDailyMeals, fetchUserProfile, Meal, UserProfile } from "@/lib/api";
+import { createAuthenticatedClient } from "@/lib/supabase";
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const { user, isLoaded: isUserLoaded } = useUser();
+  const { getToken } = useAuth();
   const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
 
   const [meals, setMeals] = useState<Meal[]>([]);
@@ -31,9 +33,14 @@ const Dashboard = () => {
 
       try {
         setIsLoading(true);
+        const token = await getToken({ template: 'supabase' });
+        if (!token) throw new Error('Failed to get Supabase token');
+
+        const supabase = createAuthenticatedClient(token);
+
         const [fetchedMeals, fetchedProfile] = await Promise.all([
-          fetchDailyMeals(user.id, today),
-          fetchUserProfile(user.id),
+          fetchDailyMeals(supabase, user.id, today),
+          fetchUserProfile(supabase, user.id),
         ]);
 
         setMeals(fetchedMeals);
