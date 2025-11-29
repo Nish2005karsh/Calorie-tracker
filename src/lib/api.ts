@@ -106,9 +106,9 @@ export const fetchUserProfile = async (client: any, userId: string) => {
         .from('user_profiles')
         .select('*')
         .eq('user_id', userId)
-        .single();
+        .maybeSingle();
 
-    if (error && error.code !== 'PGRST116') { // Ignore "Row not found" error
+    if (error) {
         console.error('Error fetching profile:', error);
         throw error;
     }
