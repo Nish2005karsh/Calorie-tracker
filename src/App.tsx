@@ -17,6 +17,8 @@ import Motivation from "./pages/onboarding/Motivation";
 import Speed from "./pages/onboarding/Speed";
 import Summary from "./pages/onboarding/Summary";
 import Dashboard from "./pages/Dashboard";
+import Calendar from "./pages/Calendar";
+import Analytics from "./pages/Analytics";
 import AddMeal from "./pages/dashboard/AddMeal";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -126,6 +128,22 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <AddMeal />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/calendar"
+              element={
+                <ProtectedRoute>
+                  <Calendar />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/analytics"
+              element={
+                <ProtectedRoute>
+                  <Analytics />
                 </ProtectedRoute>
               }
             />

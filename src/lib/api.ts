@@ -156,3 +156,50 @@ export const updateUserProfile = async (client: any, userId: string, updates: Pa
 
     return data;
 };
+
+// Log weight
+export const logWeight = async (client: any, userId: string, weight: number, date: string) => {
+    // Check if weight log exists for this date
+    const { data: existingLog } = await client
+        .from('weight_logs')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('date', date)
+        .maybeSingle();
+
+    let error;
+
+    if (existingLog) {
+        // Update
+        ({ error } = await client
+            .from('weight_logs')
+            .update({ weight })
+            .eq('id', existingLog.id));
+    } else {
+        // Insert
+        ({ error } = await client
+            .from('weight_logs')
+            .insert([{ user_id: userId, weight, date }]));
+    }
+
+    if (error) {
+        console.error('Error logging weight:', error);
+        throw error;
+    }
+};
+
+// Fetch weight history
+export const fetchWeightHistory = async (client: any, userId: string) => {
+    const { data, error } = await client
+        .from('weight_logs')
+        .select('*')
+        .eq('user_id', userId)
+        .order('date', { ascending: true });
+
+    if (error) {
+        console.error('Error fetching weight history:', error);
+        throw error;
+    }
+
+    return data;
+};

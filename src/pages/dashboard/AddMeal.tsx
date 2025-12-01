@@ -16,6 +16,7 @@ import { faArrowLeft, faCamera, faSearch, faSpinner, faCheck } from "@fortawesom
 import { useUser, useAuth } from "@clerk/clerk-react";
 import { addMeal } from "@/lib/api";
 import { createAuthenticatedClient } from "@/lib/supabase";
+import { updateStreak } from "@/lib/streaks";
 
 // Send image to n8n and get analysis
 const analyzeMeal = async (imageFile: File) => {
@@ -121,6 +122,10 @@ const AddMeal = () => {
           sugar: analyzedMeal.sugar || 0,
           sodium: analyzedMeal.sodium || 0,
         });
+
+        // Update streak
+        await updateStreak(user.id, new Date());
+
         navigate("/dashboard");
       } catch (error) {
         console.error("Failed to save meal", error);
