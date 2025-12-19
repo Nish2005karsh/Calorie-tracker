@@ -1,5 +1,5 @@
 # 🥗 Calorie Tracker (CalorieAI)
-**Calorie Tracker** is a modern web application that helps users track their meals, analyze nutritional content, and maintain a healthy lifestyle. The app supports breakfast, lunch, dinner, and snacks tracking with image-based meal analysis.  
+**Calorie Tracker** is a modern web application that helps users track their meals, analyze nutritional content, and maintain a healthy lifestyle. The app supports breakfast, lunch, dinner, and snacks tracking with image-based meal analysis.   
 
 Built with **TypeScript, React, Supabase, Clerk, and n8n workflows** for a seamless and intelligent experience.
 
@@ -52,6 +52,7 @@ Built with **TypeScript, React, Supabase, Clerk, and n8n workflows** for a seaml
 3. **Image Analysis:** n8n workflows process the uploaded image to extract nutritional data.  
 4. **Database Storage:** Supabase stores the meal data and nutrition info.  
 5. **Dashboard:** Users view daily, weekly, and monthly calorie intake with insights.
+6. **Streak System:**
 
 ---
 
