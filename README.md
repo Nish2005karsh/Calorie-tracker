@@ -32,6 +32,8 @@ Built with **TypeScript, React, Supabase, Clerk, and n8n workflows** for a seaml
 **Meal Logging:**  
 ![Meal Logging](./screenshots/screenshot5.png)
 
+**N8N Flow:**
+![N8N Flow](./screenshots/screenshot6.png)
 ## 💻 Tech Stack
 
 | Layer | Technology |
