@@ -151,7 +151,7 @@ const Landing = () => {
         <div className="mx-auto max-w-7xl">
           <h2 className="mb-12 text-center text-4xl font-bold">What Our Users Say</h2>
           <div className="grid gap-8 md:grid-cols-2">
-            <Card className="border-none bg-background p-8 shadow-sm">
+            <Card className="border-none bg-background p-8 shadow-sm transition-all hover:shadow-lg hover:-translate-y-1">
               <div className="mb-4 flex gap-1">
                 {[1, 2, 3, 4, 5].map((star) => (
                   <FontAwesomeIcon
@@ -176,7 +176,7 @@ const Landing = () => {
               </div>
             </Card>
 
-            <Card className="border-none bg-background p-8 shadow-sm">
+            <Card className="border-none bg-background p-8 shadow-sm transition-all hover:shadow-lg hover:-translate-y-1">
               <div className="mb-4 flex gap-1">
                 {[1, 2, 3, 4, 5].map((star) => (
                   <FontAwesomeIcon
