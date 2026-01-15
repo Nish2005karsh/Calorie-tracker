@@ -67,10 +67,11 @@ const Landing = () => {
             <div className="relative">
               <div className="aspect-square rounded-3xl bg-gradient-to-br from-accent/20 to-accent/5 p-8">
                 <div className="flex h-full items-center justify-center">
-                  <div className="text-center">
-                    <div className="mb-4 text-6xl">📱</div>
-                    <p className="text-lg font-semibold">AI-Powered Food Recognition</p>
-                  </div>
+                  <img
+                    src="/hero-image.webp"
+                    alt="AI-Powered Food Recognition"
+                    className="h-full w-full object-contain drop-shadow-2xl"
+                  />
                 </div>
               </div>
             </div>
@@ -85,7 +86,7 @@ const Landing = () => {
             Everything You Need to Succeed
           </h2>
           <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
-            <Card className="border-none bg-background p-6 shadow-sm">
+            <Card className="border-none bg-background p-6 shadow-sm transition-all hover:shadow-lg hover:-translate-y-1">
               <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-accent/10">
                 <FontAwesomeIcon icon={faBrain} className="h-6 w-6 text-accent" />
               </div>
@@ -95,7 +96,7 @@ const Landing = () => {
               </p>
             </Card>
 
-            <Card className="border-none bg-background p-6 shadow-sm">
+            <Card className="border-none bg-background p-6 shadow-sm transition-all hover:shadow-lg hover:-translate-y-1">
               <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-accent/10">
                 <FontAwesomeIcon icon={faUtensils} className="h-6 w-6 text-accent" />
               </div>
@@ -105,7 +106,7 @@ const Landing = () => {
               </p>
             </Card>
 
-            <Card className="border-none bg-background p-6 shadow-sm">
+            <Card className="border-none bg-background p-6 shadow-sm transition-all hover:shadow-lg hover:-translate-y-1">
               <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-accent/10">
                 <FontAwesomeIcon icon={faChartLine} className="h-6 w-6 text-accent" />
               </div>
@@ -115,7 +116,7 @@ const Landing = () => {
               </p>
             </Card>
 
-            <Card className="border-none bg-background p-6 shadow-sm">
+            <Card className="border-none bg-background p-6 shadow-sm transition-all hover:shadow-lg hover:-translate-y-1">
               <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-accent/10">
                 <FontAwesomeIcon icon={faFireFlameCurved} className="h-6 w-6 text-accent" />
               </div>
