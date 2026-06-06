@@ -1,13 +1,22 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faArrowLeft } from "@fortawesome/free-solid-svg-icons";
+import { useOnboarding } from "@/hooks/useOnboarding";
 
 const Gender = () => {
   const navigate = useNavigate();
   const [selectedGender, setSelectedGender] = useState<string | null>(null);
+  const { isOnboardingComplete, isLoaded } = useOnboarding();
+
+  // Returning users who already onboarded shouldn't see onboarding again.
+  useEffect(() => {
+    if (isLoaded && isOnboardingComplete) {
+      navigate("/dashboard", { replace: true });
+    }
+  }, [isLoaded, isOnboardingComplete, navigate]);
 
   const handleNext = () => {
     if (selectedGender) {

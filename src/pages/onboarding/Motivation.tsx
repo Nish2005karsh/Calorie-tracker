@@ -1,10 +1,33 @@
+import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faArrowLeft } from "@fortawesome/free-solid-svg-icons";
+import { kgToLbs, UnitSystem } from "@/lib/goals";
 
 const Motivation = () => {
   const navigate = useNavigate();
+
+  // Derive the realistic-target text from the weights the user entered.
+  const { verb, amount, unit, isMaintain } = useMemo(() => {
+    const units = (localStorage.getItem("calai_units") as UnitSystem) || "metric";
+    const weightKg = parseFloat(localStorage.getItem("calai_weight") || "0");
+    const goalKg = parseFloat(localStorage.getItem("calai_goal_weight") || "0");
+    const diffKg = weightKg - goalKg;
+
+    const unit = units === "metric" ? "kg" : "lbs";
+    const amount =
+      units === "metric"
+        ? Math.abs(Math.round(diffKg))
+        : Math.abs(Math.round(kgToLbs(weightKg) - kgToLbs(goalKg)));
+
+    return {
+      verb: diffKg > 0 ? "Losing" : "Gaining",
+      amount,
+      unit,
+      isMaintain: amount === 0,
+    };
+  }, []);
 
   const handleNext = () => {
     navigate("/onboarding/speed");
@@ -33,7 +56,13 @@ const Motivation = () => {
       <div className="mx-auto max-w-2xl px-6 py-12">
         <div className="mb-16 text-center">
           <h1 className="mb-6 text-4xl font-bold leading-tight">
-            Losing <span className="text-accent">6 lbs</span> is a realistic target. It's not hard at all!
+            {isMaintain ? (
+              <>Maintaining your weight is a realistic target. It's not hard at all!</>
+            ) : (
+              <>
+                {verb} <span className="text-accent">{amount} {unit}</span> is a realistic target. It's not hard at all!
+              </>
+            )}
           </h1>
           
           <p className="text-lg text-muted-foreground leading-relaxed">

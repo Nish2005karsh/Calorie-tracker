@@ -3,12 +3,15 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faArrowLeft, faCheck, faPencil, faSpinner } from "@fortawesome/free-solid-svg-icons";
+import { faArrowLeft, faCheck, faSpinner } from "@fortawesome/free-solid-svg-icons";
 import { useOnboarding } from "@/hooks/useOnboarding";
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import { useUser, useAuth } from "@clerk/clerk-react";
 import { createAuthenticatedClient } from "@/lib/supabase";
 import { updateUserProfile } from "@/lib/api";
+import { computeGoals, kgToLbs, UnitSystem } from "@/lib/goals";
+import { format } from "date-fns";
+import { toast } from "sonner";
 
 const Summary = () => {
   const navigate = useNavigate();
@@ -17,56 +20,72 @@ const Summary = () => {
   const { getToken } = useAuth();
   const [isSaving, setIsSaving] = useState(false);
 
-  // Mock data - will come from context later
-  const userData = {
-    goalWeight: 6,
-    targetDate: "May 2",
-    dailyCalories: 1910,
-    carbs: 221,
-    protein: 136,
-    fats: 53,
-    healthScore: 7,
-  };
+  // Read the onboarding answers and compute the real plan.
+  const { goals, units, currentWeightKg, goalWeightKg, gender, workoutFrequency } = useMemo(() => {
+    const gender = localStorage.getItem("calai_gender") || "other";
+    const workoutFrequency = localStorage.getItem("calai_workout_frequency") || "sedentary";
+    const units = (localStorage.getItem("calai_units") as UnitSystem) || "metric";
+    const currentWeightKg = parseFloat(localStorage.getItem("calai_weight") || "0");
+    const goalWeightKg = parseFloat(localStorage.getItem("calai_goal_weight") || "0");
+    const heightCm = parseFloat(localStorage.getItem("calai_height") || "0");
+    const age = parseFloat(localStorage.getItem("calai_age") || "0");
+    const weightSpeedLbs = parseFloat(localStorage.getItem("calai_weight_speed") || "1.0");
+
+    const goals = computeGoals({
+      gender,
+      weightKg: currentWeightKg,
+      heightCm,
+      age,
+      goalWeightKg,
+      workoutFrequency,
+      weightSpeedLbs,
+    });
+
+    return { goals, units, currentWeightKg, goalWeightKg, gender, workoutFrequency };
+  }, []);
+
+  const weightUnit = units === "metric" ? "kg" : "lbs";
+  const weightToChangeDisplay =
+    units === "metric"
+      ? Math.abs(Math.round(currentWeightKg - goalWeightKg))
+      : goals.weightToChangeLbs;
+  const directionVerb =
+    goals.direction === "gain" ? "gain" : goals.direction === "lose" ? "lose" : "maintain";
 
   const handleFinish = async () => {
     if (!user) return;
 
     setIsSaving(true);
     try {
-      // 1. Get Auth Token
-      const token = await getToken({ template: 'supabase' });
-      if (!token) throw new Error('Failed to get Supabase token');
+      // 1. Try to save the computed plan to Supabase. If the backend is
+      //    unreachable we still let the user proceed (don't trap them here).
+      try {
+        const token = await getToken({ template: 'supabase' });
+        if (!token) throw new Error('Failed to get Supabase token');
 
-      const supabase = createAuthenticatedClient(token);
+        const supabase = createAuthenticatedClient(token);
+        await updateUserProfile(supabase, user.id, {
+          gender,
+          workout_frequency: workoutFrequency,
+          current_weight: currentWeightKg,
+          desired_weight: goalWeightKg,
+          calorie_goal: goals.calorieGoal,
+          protein_goal: goals.proteinGoal,
+          carbs_goal: goals.carbsGoal,
+          fats_goal: goals.fatsGoal,
+          health_score: goals.healthScore,
+        });
+      } catch (saveError) {
+        console.error("Failed to save profile to Supabase:", saveError);
+        toast.error("Couldn't reach the server to save your plan, but you can continue.");
+      }
 
-      // 2. Gather data from localStorage
-      const gender = localStorage.getItem("calai_gender") || "other";
-      const workoutFrequency = localStorage.getItem("calai_workout_frequency") || "sedentary";
-      // Assuming these keys exist or defaulting
-      const currentWeight = parseFloat(localStorage.getItem("calai_weight") || "0");
-      const desiredWeight = parseFloat(localStorage.getItem("calai_goal_weight") || "0");
-
-      // 3. Save to Supabase
-      await updateUserProfile(supabase, user.id, {
-        gender,
-        workout_frequency: workoutFrequency,
-        current_weight: currentWeight,
-        desired_weight: desiredWeight,
-        calorie_goal: userData.dailyCalories,
-        protein_goal: userData.protein,
-        carbs_goal: userData.carbs,
-        fats_goal: userData.fats,
-        health_score: userData.healthScore,
-      });
-
-      // 4. Mark complete locally
-      markOnboardingComplete();
-
-      // 5. Navigate
+      // 2. Mark onboarding complete (Clerk metadata + localStorage) and go.
+      await markOnboardingComplete();
       navigate("/dashboard");
     } catch (error) {
-      console.error("Failed to save profile:", error);
-      // Optional: Show error toast
+      console.error("Failed to finish onboarding:", error);
+      toast.error("Something went wrong. Please try again.");
     } finally {
       setIsSaving(false);
     }
@@ -100,10 +119,16 @@ const Summary = () => {
             Congratulations your custom plan is ready!
           </h1>
           <p className="text-lg text-muted-foreground">
-            You should lose:{" "}
-            <span className="font-bold text-accent">
-              {userData.goalWeight} lbs by {userData.targetDate}
-            </span>
+            {goals.direction === "maintain" ? (
+              <>You should maintain your current weight</>
+            ) : (
+              <>
+                You should {directionVerb}:{" "}
+                <span className="font-bold text-accent">
+                  {weightToChangeDisplay} {weightUnit} by {format(goals.targetDate, "MMM d, yyyy")}
+                </span>
+              </>
+            )}
           </p>
         </div>
 
@@ -139,15 +164,8 @@ const Summary = () => {
                     transform="rotate(-90 50 50)"
                   />
                 </svg>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="absolute ml-16 mt-16"
-                >
-                  <FontAwesomeIcon icon={faPencil} className="h-3 w-3" />
-                </Button>
               </div>
-              <p className="mb-1 text-2xl font-bold">{userData.dailyCalories}</p>
+              <p className="mb-1 text-2xl font-bold">{goals.calorieGoal}</p>
               <p className="text-sm text-muted-foreground">Calories</p>
             </div>
 
@@ -176,15 +194,8 @@ const Summary = () => {
                     transform="rotate(-90 50 50)"
                   />
                 </svg>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="absolute ml-16 mt-16"
-                >
-                  <FontAwesomeIcon icon={faPencil} className="h-3 w-3" />
-                </Button>
               </div>
-              <p className="mb-1 text-2xl font-bold">{userData.carbs}g</p>
+              <p className="mb-1 text-2xl font-bold">{goals.carbsGoal}g</p>
               <p className="text-sm text-muted-foreground">Carbs</p>
             </div>
 
@@ -213,15 +224,8 @@ const Summary = () => {
                     transform="rotate(-90 50 50)"
                   />
                 </svg>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="absolute ml-16 mt-16"
-                >
-                  <FontAwesomeIcon icon={faPencil} className="h-3 w-3" />
-                </Button>
               </div>
-              <p className="mb-1 text-2xl font-bold">{userData.protein}g</p>
+              <p className="mb-1 text-2xl font-bold">{goals.proteinGoal}g</p>
               <p className="text-sm text-muted-foreground">Protein</p>
             </div>
 
@@ -250,15 +254,8 @@ const Summary = () => {
                     transform="rotate(-90 50 50)"
                   />
                 </svg>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="absolute ml-16 mt-16"
-                >
-                  <FontAwesomeIcon icon={faPencil} className="h-3 w-3" />
-                </Button>
               </div>
-              <p className="mb-1 text-2xl font-bold">{userData.fats}g</p>
+              <p className="mb-1 text-2xl font-bold">{goals.fatsGoal}g</p>
               <p className="text-sm text-muted-foreground">Fats</p>
             </div>
           </div>
@@ -267,10 +264,10 @@ const Summary = () => {
             <div className="mb-2 flex items-center justify-between">
               <p className="font-semibold">Health Score</p>
               <p className="text-2xl font-bold text-destructive">
-                {userData.healthScore}/10
+                {goals.healthScore}/10
               </p>
             </div>
-            <Progress value={userData.healthScore * 10} className="h-3" />
+            <Progress value={goals.healthScore * 10} className="h-3" />
           </div>
         </Card>
 

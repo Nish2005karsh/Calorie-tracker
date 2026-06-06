@@ -50,8 +50,8 @@ const Analytics = () => {
 
                 const [profile, weekly, monthly, weight] = await Promise.all([
                     fetchUserProfile(supabase, user.id),
-                    fetchWeeklyStats(user.id),
-                    fetchMonthlyStats(user.id),
+                    fetchWeeklyStats(supabase, user.id),
+                    fetchMonthlyStats(supabase, user.id),
                     fetchWeightHistory(supabase, user.id),
                 ]);
 

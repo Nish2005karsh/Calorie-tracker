@@ -16,20 +16,38 @@ import {
   faMedal,
   faChartPie,
   faWeightScale,
+  faTrash,
+  faChevronLeft,
+  faChevronRight,
+  faGlassWater,
+  faMinus,
 } from "@fortawesome/free-solid-svg-icons";
 import { useNavigate } from "react-router-dom";
 import { UserButton, useUser, useAuth } from "@clerk/clerk-react";
 import { useEffect, useState } from "react";
-import { fetchDailyMeals, fetchUserProfile, Meal, UserProfile, logWeight } from "@/lib/api";
+import { fetchDailyMeals, fetchUserProfile, deleteMeal, Meal, UserProfile, logWeight, getWaterGlasses, setWaterGlasses } from "@/lib/api";
 import { createAuthenticatedClient } from "@/lib/supabase";
 import { getStreak, getBadges, Streak, Badge } from "@/lib/streaks";
+import { getLocalDateString } from "@/lib/utils";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
+import { addDays, isToday, format } from "date-fns";
+import { toast } from "sonner";
+
+const MEAL_CATEGORIES = [
+  { type: "breakfast", label: "Breakfast", icon: faMugHot, bg: "bg-accent/10", text: "text-accent" },
+  { type: "lunch", label: "Lunch", icon: faUtensils, bg: "bg-warning/10", text: "text-warning" },
+  { type: "dinner", label: "Dinner", icon: faBowlFood, bg: "bg-destructive/10", text: "text-destructive" },
+  { type: "snacks", label: "Snacks", icon: faCookie, bg: "bg-success/10", text: "text-success" },
+] as const;
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const { user, isLoaded: isUserLoaded } = useUser();
   const { getToken } = useAuth();
-  const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const dateStr = getLocalDateString(selectedDate);
+  const viewingToday = isToday(selectedDate);
 
   const [meals, setMeals] = useState<Meal[]>([]);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
@@ -39,6 +57,9 @@ const Dashboard = () => {
 
   const [weight, setWeight] = useState("");
   const [isLoggingWeight, setIsLoggingWeight] = useState(false);
+
+  const WATER_GOAL = 8; // glasses per day
+  const [water, setWater] = useState(0);
 
   useEffect(() => {
     const loadData = async () => {
@@ -51,17 +72,19 @@ const Dashboard = () => {
 
         const supabase = createAuthenticatedClient(token);
 
-        const [fetchedMeals, fetchedProfile, fetchedStreak, fetchedBadges] = await Promise.all([
-          fetchDailyMeals(supabase, user.id, today),
+        const [fetchedMeals, fetchedProfile, fetchedStreak, fetchedBadges, fetchedWater] = await Promise.all([
+          fetchDailyMeals(supabase, user.id, dateStr),
           fetchUserProfile(supabase, user.id),
-          getStreak(user.id),
-          getBadges(user.id),
+          getStreak(supabase, user.id),
+          getBadges(supabase, user.id),
+          getWaterGlasses(supabase, user.id, dateStr),
         ]);
 
         setMeals(fetchedMeals);
         setUserProfile(fetchedProfile);
         setStreak(fetchedStreak);
         setBadges(fetchedBadges);
+        setWater(fetchedWater);
       } catch (error) {
         console.error("Failed to load dashboard data", error);
       } finally {
@@ -70,7 +93,7 @@ const Dashboard = () => {
     };
 
     loadData();
-  }, [isUserLoaded, user, today]);
+  }, [isUserLoaded, user, dateStr]);
 
   const handleLogWeight = async () => {
     if (!weight || !user) return;
@@ -79,35 +102,60 @@ const Dashboard = () => {
       const token = await getToken({ template: 'supabase' });
       if (token) {
         const supabase = createAuthenticatedClient(token);
-        await logWeight(supabase, user.id, parseFloat(weight), today);
+        await logWeight(supabase, user.id, parseFloat(weight), dateStr);
         setWeight("");
-        // Optionally show success toast
+        toast.success("Weight logged!");
       }
     } catch (error) {
       console.error("Failed to log weight", error);
+      toast.error("Failed to log weight.");
     } finally {
       setIsLoggingWeight(false);
     }
   };
+
+  const handleAdjustWater = async (delta: number) => {
+    if (!user) return;
+    const next = Math.max(water + delta, 0);
+    const previous = water;
+    setWater(next); // optimistic
+    try {
+      const token = await getToken({ template: 'supabase' });
+      if (!token) throw new Error('Failed to get Supabase token');
+      const supabase = createAuthenticatedClient(token);
+      await setWaterGlasses(supabase, user.id, dateStr, next);
+    } catch (error) {
+      console.error("Failed to update water", error);
+      toast.error("Failed to update water.");
+      setWater(previous); // rollback
+    }
+  };
+
+  const handleDeleteMeal = async (mealId?: string) => {
+    if (!mealId || !user) return;
+    const previous = meals;
+    setMeals((prev) => prev.filter((m) => m.id !== mealId)); // optimistic
+    try {
+      const token = await getToken({ template: 'supabase' });
+      if (!token) throw new Error('Failed to get Supabase token');
+      const supabase = createAuthenticatedClient(token);
+      await deleteMeal(supabase, mealId);
+      toast.success("Meal deleted");
+    } catch (error) {
+      console.error("Failed to delete meal", error);
+      toast.error("Failed to delete meal.");
+      setMeals(previous); // rollback
+    }
+  };
+
+  const mealsForType = (type: string) =>
+    meals.filter((m) => m.meal_type === type || (type === "snacks" && m.meal_type === "snack"));
 
   // Calculate totals
   const totalCalories = meals.reduce((sum, meal) => sum + meal.calories, 0);
   const totalProtein = meals.reduce((sum, meal) => sum + meal.protein, 0);
   const totalCarbs = meals.reduce((sum, meal) => sum + meal.carbs, 0);
   const totalFats = meals.reduce((sum, meal) => sum + meal.fat, 0);
-
-  const breakfastCalories = meals
-    .filter((m) => m.meal_type === "breakfast")
-    .reduce((sum, m) => sum + m.calories, 0);
-  const lunchCalories = meals
-    .filter((m) => m.meal_type === "lunch")
-    .reduce((sum, m) => sum + m.calories, 0);
-  const dinnerCalories = meals
-    .filter((m) => m.meal_type === "dinner")
-    .reduce((sum, m) => sum + m.calories, 0);
-  const snacksCalories = meals
-    .filter((m) => m.meal_type === "snacks" || m.meal_type === "snack")
-    .reduce((sum, m) => sum + m.calories, 0);
 
   // Use profile goals or defaults
   const goalCalories = userProfile?.calorie_goal || 1910;
@@ -118,9 +166,9 @@ const Dashboard = () => {
   const calorieProgress = Math.min((totalCalories / goalCalories) * 100, 100);
 
   const macroData = [
-    { name: 'Protein', value: totalProtein, color: '#f97316' }, // orange-500
-    { name: 'Carbs', value: totalCarbs, color: '#eab308' },    // yellow-500
-    { name: 'Fats', value: totalFats, color: '#ef4444' },      // red-500
+    { name: 'Protein', value: totalProtein, color: '#f97316' },
+    { name: 'Carbs', value: totalCarbs, color: '#eab308' },
+    { name: 'Fats', value: totalFats, color: '#ef4444' },
   ];
 
   if (!isUserLoaded || isLoading) {
@@ -144,7 +192,7 @@ const Dashboard = () => {
             <Button variant="ghost" size="icon" onClick={() => navigate("/calendar")}>
               <FontAwesomeIcon icon={faCalendarAlt} className="h-5 w-5" />
             </Button>
-            <Button variant="ghost" size="icon">
+            <Button variant="ghost" size="icon" onClick={() => navigate("/settings")}>
               <FontAwesomeIcon icon={faCog} className="h-5 w-5" />
             </Button>
             <UserButton afterSignOutUrl="/" />
@@ -154,11 +202,26 @@ const Dashboard = () => {
 
       <div className="mx-auto max-w-4xl px-6 py-8">
         {/* Date Selector */}
-        <div className="mb-8 flex items-center justify-center gap-4">
-          <Button variant="ghost">Yesterday</Button>
-          <Button variant="default" className="rounded-xl">
-            Today
+        <div className="mb-8 flex items-center justify-center gap-3">
+          <Button variant="ghost" size="icon" onClick={() => setSelectedDate((d) => addDays(d, -1))}>
+            <FontAwesomeIcon icon={faChevronLeft} />
           </Button>
+          <Button variant="default" className="rounded-xl min-w-[140px]">
+            {viewingToday ? "Today" : format(selectedDate, "EEE, MMM d")}
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setSelectedDate((d) => addDays(d, 1))}
+            disabled={viewingToday}
+          >
+            <FontAwesomeIcon icon={faChevronRight} />
+          </Button>
+          {!viewingToday && (
+            <Button variant="outline" className="rounded-xl" onClick={() => setSelectedDate(new Date())}>
+              Jump to Today
+            </Button>
+          )}
         </div>
 
         {/* Streak & Badges Overview */}
@@ -269,50 +332,61 @@ const Dashboard = () => {
           </div>
         </Card>
 
+        {/* Water Tracking */}
+        <Card className="mb-8 border-none p-6 shadow-sm">
+          <div className="flex items-center gap-4">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-sky-100 text-sky-600 dark:bg-sky-900/20">
+              <FontAwesomeIcon icon={faGlassWater} className="h-6 w-6" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-semibold">Water</h3>
+              <p className="text-sm text-muted-foreground">
+                {water} / {WATER_GOAL} glasses
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => handleAdjustWater(-1)}
+                disabled={water <= 0}
+              >
+                <FontAwesomeIcon icon={faMinus} />
+              </Button>
+              <span className="w-8 text-center text-lg font-bold">{water}</span>
+              <Button variant="outline" size="icon" onClick={() => handleAdjustWater(1)}>
+                <FontAwesomeIcon icon={faPlus} />
+              </Button>
+            </div>
+          </div>
+          <Progress value={Math.min((water / WATER_GOAL) * 100, 100)} className="mt-4 h-2" />
+        </Card>
+
         {/* Macros Section */}
         <div className="mb-8 grid gap-4 md:grid-cols-3">
           <Card className="border-none p-6 shadow-sm">
             <div className="text-center">
               <p className="mb-2 text-sm font-semibold">Protein</p>
-              <div className="mb-2 text-3xl font-bold text-accent">
-                {Math.round(totalProtein)}g
-              </div>
-              <Progress
-                value={(totalProtein / goalProtein) * 100}
-                className="mb-2 h-2"
-              />
-              <p className="text-xs text-muted-foreground">
-                of {goalProtein}g
-              </p>
+              <div className="mb-2 text-3xl font-bold text-accent">{Math.round(totalProtein)}g</div>
+              <Progress value={(totalProtein / goalProtein) * 100} className="mb-2 h-2" />
+              <p className="text-xs text-muted-foreground">of {goalProtein}g</p>
             </div>
           </Card>
 
           <Card className="border-none p-6 shadow-sm">
             <div className="text-center">
               <p className="mb-2 text-sm font-semibold">Carbs</p>
-              <div className="mb-2 text-3xl font-bold text-warning">
-                {Math.round(totalCarbs)}g
-              </div>
-              <Progress
-                value={(totalCarbs / goalCarbs) * 100}
-                className="mb-2 h-2"
-              />
-              <p className="text-xs text-muted-foreground">
-                of {goalCarbs}g
-              </p>
+              <div className="mb-2 text-3xl font-bold text-warning">{Math.round(totalCarbs)}g</div>
+              <Progress value={(totalCarbs / goalCarbs) * 100} className="mb-2 h-2" />
+              <p className="text-xs text-muted-foreground">of {goalCarbs}g</p>
             </div>
           </Card>
 
           <Card className="border-none p-6 shadow-sm">
             <div className="text-center">
               <p className="mb-2 text-sm font-semibold">Fats</p>
-              <div className="mb-2 text-3xl font-bold text-destructive">
-                {Math.round(totalFats)}g
-              </div>
-              <Progress
-                value={(totalFats / goalFats) * 100}
-                className="mb-2 h-2"
-              />
+              <div className="mb-2 text-3xl font-bold text-destructive">{Math.round(totalFats)}g</div>
+              <Progress value={(totalFats / goalFats) * 100} className="mb-2 h-2" />
               <p className="text-xs text-muted-foreground">of {goalFats}g</p>
             </div>
           </Card>
@@ -320,96 +394,64 @@ const Dashboard = () => {
 
         {/* Meals Section */}
         <div className="space-y-4">
-          <h2 className="text-2xl font-bold">Today's Meals</h2>
+          <h2 className="text-2xl font-bold">{viewingToday ? "Today's Meals" : "Meals"}</h2>
 
-          <Card className="border-none p-6 shadow-sm hover:shadow-md transition-shadow">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent/10">
-                  <FontAwesomeIcon icon={faMugHot} className="h-6 w-6 text-accent" />
+          {MEAL_CATEGORIES.map((cat) => {
+            const items = mealsForType(cat.type);
+            const catCalories = items.reduce((sum, m) => sum + m.calories, 0);
+            return (
+              <Card key={cat.type} className="border-none p-6 shadow-sm hover:shadow-md transition-shadow">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className={`flex h-12 w-12 items-center justify-center rounded-full ${cat.bg}`}>
+                      <FontAwesomeIcon icon={cat.icon} className={`h-6 w-6 ${cat.text}`} />
+                    </div>
+                    <div>
+                      <p className="font-semibold">{cat.label}</p>
+                      <p className="text-sm text-muted-foreground">{Math.round(catCalories)} cal</p>
+                    </div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => navigate(`/dashboard/add-meal?type=${cat.type}&date=${dateStr}`)}
+                  >
+                    <FontAwesomeIcon icon={faPlus} className="h-5 w-5" />
+                  </Button>
                 </div>
-                <div>
-                  <p className="font-semibold">Breakfast</p>
-                  <p className="text-sm text-muted-foreground">{Math.round(breakfastCalories)} cal</p>
-                </div>
-              </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => navigate("/dashboard/add-meal?type=breakfast")}
-              >
-                <FontAwesomeIcon icon={faPlus} className="h-5 w-5" />
-              </Button>
-            </div>
-          </Card>
 
-          <Card className="border-none p-6 shadow-sm hover:shadow-md transition-shadow">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-warning/10">
-                  <FontAwesomeIcon icon={faUtensils} className="h-6 w-6 text-warning" />
-                </div>
-                <div>
-                  <p className="font-semibold">Lunch</p>
-                  <p className="text-sm text-muted-foreground">{Math.round(lunchCalories)} cal</p>
-                </div>
-              </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => navigate("/dashboard/add-meal?type=lunch")}
-              >
-                <FontAwesomeIcon icon={faPlus} className="h-5 w-5" />
-              </Button>
-            </div>
-          </Card>
-
-          <Card className="border-none p-6 shadow-sm hover:shadow-md transition-shadow">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10">
-                  <FontAwesomeIcon icon={faBowlFood} className="h-6 w-6 text-destructive" />
-                </div>
-                <div>
-                  <p className="font-semibold">Dinner</p>
-                  <p className="text-sm text-muted-foreground">{Math.round(dinnerCalories)} cal</p>
-                </div>
-              </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => navigate("/dashboard/add-meal?type=dinner")}
-              >
-                <FontAwesomeIcon icon={faPlus} className="h-5 w-5" />
-              </Button>
-            </div>
-          </Card>
-
-          <Card className="border-none p-6 shadow-sm hover:shadow-md transition-shadow">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-success/10">
-                  <FontAwesomeIcon icon={faCookie} className="h-6 w-6 text-success" />
-                </div>
-                <div>
-                  <p className="font-semibold">Snacks</p>
-                  <p className="text-sm text-muted-foreground">{Math.round(snacksCalories)} cal</p>
-                </div>
-              </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => navigate("/dashboard/add-meal?type=snacks")}
-              >
-                <FontAwesomeIcon icon={faPlus} className="h-5 w-5" />
-              </Button>
-            </div>
-          </Card>
+                {/* Individual logged items for this category */}
+                {items.length > 0 && (
+                  <div className="mt-4 space-y-2 border-t pt-4">
+                    {items.map((meal) => (
+                      <div key={meal.id} className="flex items-center justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="truncate font-medium">{meal.meal_name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {Math.round(meal.calories)} cal · P {Math.round(meal.protein)}g · C{" "}
+                            {Math.round(meal.carbs)}g · F {Math.round(meal.fat)}g
+                          </p>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-muted-foreground hover:text-destructive"
+                          onClick={() => handleDeleteMeal(meal.id)}
+                        >
+                          <FontAwesomeIcon icon={faTrash} className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </Card>
+            );
+          })}
         </div>
 
         {/* Floating Add Button */}
         <Button
-          onClick={() => navigate("/dashboard/add-meal")}
+          onClick={() => navigate(`/dashboard/add-meal?date=${dateStr}`)}
           className="fixed bottom-8 right-8 h-16 w-16 rounded-full shadow-lg"
           size="icon"
         >

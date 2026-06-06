@@ -43,7 +43,7 @@ const Calendar = () => {
                 // Fetch logs for current month
                 const month = currentDate.getMonth() + 1; // 1-indexed
                 const year = currentDate.getFullYear();
-                const logs = await getMonthlyLogs(user.id, month, year);
+                const logs = await getMonthlyLogs(supabase, user.id, month, year);
                 setMonthlyLogs(logs || []);
 
             } catch (error) {

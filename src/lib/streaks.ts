@@ -1,4 +1,8 @@
-import { supabase } from './supabase';
+// NOTE: Every function here takes an authenticated Supabase `client`
+// (created via createAuthenticatedClient with the Clerk token). Using the
+// plain anon `supabase` client does NOT work: RLS policies on these tables
+// match `auth.jwt() ->> 'sub'`, and the anon client carries no JWT, so all
+// reads/writes silently return nothing / fail.
 
 export interface Streak {
     user_id: string;
@@ -16,8 +20,8 @@ export interface Badge {
     achieved_at: string;
 }
 
-export const getStreak = async (userId: string) => {
-    const { data, error } = await supabase
+export const getStreak = async (client: any, userId: string) => {
+    const { data, error } = await client
         .from('user_streaks')
         .select('*')
         .eq('user_id', userId)
@@ -30,16 +34,16 @@ export const getStreak = async (userId: string) => {
     return data as Streak | null;
 };
 
-export const updateStreak = async (userId: string, logDate: Date) => {
+export const updateStreak = async (client: any, userId: string, logDate: Date) => {
     const today = new Date(logDate);
     today.setHours(0, 0, 0, 0);
     const todayStr = today.toISOString().split('T')[0];
 
-    let streak = await getStreak(userId);
+    let streak = await getStreak(client, userId);
 
     if (!streak) {
         // Create new streak record
-        const { error } = await supabase.from('user_streaks').insert({
+        const { error } = await client.from('user_streaks').insert({
             user_id: userId,
             streak_start_date: todayStr,
             current_streak: 1,
@@ -64,7 +68,7 @@ export const updateStreak = async (userId: string, logDate: Date) => {
         const newCurrent = streak.current_streak + 1;
         const newLongest = Math.max(streak.longest_streak, newCurrent);
 
-        const { error } = await supabase
+        const { error } = await client
             .from('user_streaks')
             .update({
                 current_streak: newCurrent,
@@ -76,11 +80,11 @@ export const updateStreak = async (userId: string, logDate: Date) => {
         if (error) console.error('Error updating streak:', error);
 
         // Check for badges
-        await checkAndAwardBadges(userId, newCurrent);
+        await checkAndAwardBadges(client, userId, newCurrent);
 
     } else {
         // Streak broken
-        const { error } = await supabase
+        const { error } = await client
             .from('user_streaks')
             .update({
                 current_streak: 1,
@@ -93,8 +97,8 @@ export const updateStreak = async (userId: string, logDate: Date) => {
     }
 };
 
-export const getBadges = async (userId: string) => {
-    const { data, error } = await supabase
+export const getBadges = async (client: any, userId: string) => {
+    const { data, error } = await client
         .from('user_badges')
         .select('*')
         .eq('user_id', userId);
@@ -106,7 +110,7 @@ export const getBadges = async (userId: string) => {
     return data as Badge[];
 };
 
-export const checkAndAwardBadges = async (userId: string, currentStreak: number) => {
+export const checkAndAwardBadges = async (client: any, userId: string, currentStreak: number) => {
     const badgesToAward = [];
 
     if (currentStreak >= 3) badgesToAward.push({ name: '3-Day Streak', req: 3 });
@@ -116,12 +120,12 @@ export const checkAndAwardBadges = async (userId: string, currentStreak: number)
     if (currentStreak >= 21) badgesToAward.push({ name: '21-Day Habit Builder', req: 21 });
 
     // Fetch existing badges to avoid duplicates
-    const existingBadges = await getBadges(userId);
+    const existingBadges = await getBadges(client, userId);
     const existingNames = new Set(existingBadges.map(b => b.badge_name));
 
     for (const badge of badgesToAward) {
         if (!existingNames.has(badge.name)) {
-            const { error } = await supabase.from('user_badges').insert({
+            const { error } = await client.from('user_badges').insert({
                 user_id: userId,
                 badge_name: badge.name,
                 day_requirement: badge.req,
@@ -131,19 +135,19 @@ export const checkAndAwardBadges = async (userId: string, currentStreak: number)
     }
 };
 
-export const getMonthlyLogs = async (userId: string, month: number, year: number) => {
-    // Month is 0-indexed in JS Date, but let's assume 1-indexed for API or handle accordingly.
-    // Let's use 1-indexed for the argument to be clear.
-
+export const getMonthlyLogs = async (client: any, userId: string, month: number, year: number) => {
+    // Month is 1-indexed for this argument to be clear.
     const startDate = new Date(year, month - 1, 1);
     const endDate = new Date(year, month, 0); // Last day of the month
 
     const startStr = startDate.toISOString().split('T')[0];
     const endStr = endDate.toISOString().split('T')[0];
 
-    const { data, error } = await supabase
+    // daily_meals has one row PER MEAL with a `calories` column (there is no
+    // `total_calories` column). Fetch the per-meal rows and sum them per date.
+    const { data, error } = await client
         .from('daily_meals')
-        .select('date, total_calories')
+        .select('date, calories')
         .eq('user_id', userId)
         .gte('date', startStr)
         .lte('date', endStr);
@@ -152,5 +156,11 @@ export const getMonthlyLogs = async (userId: string, month: number, year: number
         console.error('Error fetching monthly logs:', error);
         return [];
     }
-    return data;
+
+    const totalsByDate = new Map<string, number>();
+    for (const row of (data as { date: string; calories: number }[])) {
+        totalsByDate.set(row.date, (totalsByDate.get(row.date) || 0) + (row.calories || 0));
+    }
+
+    return Array.from(totalsByDate, ([date, total_calories]) => ({ date, total_calories }));
 };

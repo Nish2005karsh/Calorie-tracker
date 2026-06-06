@@ -1,18 +1,115 @@
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import {
-  faBrain,
-  faUtensils,
-  faChartLine,
-  faFireFlameCurved,
-  faStar,
-} from "@fortawesome/free-solid-svg-icons";
+import { faStar, faSun, faMoon } from "@fortawesome/free-solid-svg-icons";
 import { useNavigate } from "react-router-dom";
-import { SignedIn, SignedOut, UserButton } from "@clerk/clerk-react";
+import { SignedIn, SignedOut, UserButton, useAuth } from "@clerk/clerk-react";
+import { useTheme } from "next-themes";
+import { useOnboarding } from "@/hooks/useOnboarding";
+import { motion } from "motion/react";
+import { TestimonialsColumn, Testimonial } from "@/components/ui/testimonials-columns-1";
+import Footer from "@/components/Footer";
+
+const FEATURES = [
+  {
+    image: "/image1.png",
+    title: "AI-Powered Recognition",
+    description:
+      "Simply snap a photo and let our AI identify your food and calculate calories instantly",
+  },
+  {
+    image: "/image2.png",
+    title: "Personalized Plans",
+    description:
+      "Get custom meal plans tailored to your goals, lifestyle, and dietary preferences",
+  },
+  {
+    image: "/image3.png",
+    title: "Real-time Tracking",
+    description:
+      "Track calories, macros, and nutrition throughout the day with live updates",
+  },
+  {
+    image: "/image4.png",
+    title: "Stay Motivated",
+    description:
+      "Visual progress tracking and health scores keep you engaged and accountable",
+  },
+];
+
+const testimonials: Testimonial[] = [
+  {
+    text: "I lost 15 lbs in 2 months! I was about to go on Ozempic but decided to give this app a shot and it worked!",
+    image: "https://randomuser.me/api/portraits/women/1.jpg",
+    name: "Marley Brylle",
+    role: "Verified User",
+  },
+  {
+    text: "The AI food recognition is incredible! It saves me so much time and makes tracking actually enjoyable.",
+    image: "https://randomuser.me/api/portraits/men/2.jpg",
+    name: "Benny Marcos",
+    role: "Verified User",
+  },
+  {
+    text: "As a busy mom of three, the personalized meal plans work for my whole family. Down 20 lbs and not deprived!",
+    image: "https://randomuser.me/api/portraits/women/3.jpg",
+    name: "Sarah Chen",
+    role: "Verified User",
+  },
+  {
+    text: "Snapping a photo instead of logging everything by hand changed the game. I actually stick with it now.",
+    image: "https://randomuser.me/api/portraits/men/4.jpg",
+    name: "Omar Raza",
+    role: "Verified User",
+  },
+  {
+    text: "The streaks and badges keep me motivated every single day. Best habit tracker I've used.",
+    image: "https://randomuser.me/api/portraits/women/5.jpg",
+    name: "Zainab Hussain",
+    role: "Verified User",
+  },
+  {
+    text: "The macro breakdowns and analytics are so clear. I finally understand what I'm eating.",
+    image: "https://randomuser.me/api/portraits/women/6.jpg",
+    name: "Aliza Khan",
+    role: "Verified User",
+  },
+  {
+    text: "Accurate calorie estimates and a beautiful dashboard. Hit my goal weight in 4 months.",
+    image: "https://randomuser.me/api/portraits/men/7.jpg",
+    name: "Farhan Siddiqui",
+    role: "Verified User",
+  },
+  {
+    text: "Barcode scanning for packaged food is a huge time-saver. Tracking takes seconds now.",
+    image: "https://randomuser.me/api/portraits/women/8.jpg",
+    name: "Sana Sheikh",
+    role: "Verified User",
+  },
+  {
+    text: "I've tried 5 other apps and this is by far the best. The health score keeps me accountable.",
+    image: "https://randomuser.me/api/portraits/men/9.jpg",
+    name: "Hassan Ali",
+    role: "Verified User",
+  },
+];
+
+const firstColumn = testimonials.slice(0, 3);
+const secondColumn = testimonials.slice(3, 6);
+const thirdColumn = testimonials.slice(6, 9);
 
 const Landing = () => {
   const navigate = useNavigate();
+  const { resolvedTheme, setTheme } = useTheme();
+  const { isSignedIn } = useAuth();
+  const { isOnboardingComplete } = useOnboarding();
+
+  // New users -> onboarding. Returning (already onboarded) users -> dashboard.
+  const handleGetStarted = () => {
+    if (!isSignedIn) navigate("/signup");
+    else if (isOnboardingComplete) navigate("/dashboard");
+    else navigate("/onboarding/gender");
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -27,6 +124,14 @@ const Landing = () => {
             <a href="#testimonials" className="text-foreground hover:text-accent transition-colors">
               Reviews
             </a>
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Toggle theme"
+              onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
+            >
+              <FontAwesomeIcon icon={resolvedTheme === "dark" ? faSun : faMoon} className="h-5 w-5" />
+            </Button>
             <SignedOut>
               <Button variant="outline" onClick={() => navigate("/login")}>
                 Login
@@ -46,7 +151,7 @@ const Landing = () => {
       </nav>
 
       {/* Hero Section */}
-      <section className="px-6 py-20 md:py-32">
+      <section className="px-6 pt-6 pb-16 md:pt-10 md:pb-24">
         <div className="mx-auto max-w-7xl">
           <div className="grid items-center gap-12 md:grid-cols-2">
             <div>
@@ -59,7 +164,7 @@ const Landing = () => {
               <Button
                 size="lg"
                 className="h-14 rounded-xl px-8 text-lg font-semibold"
-                onClick={() => navigate("/signup")}
+                onClick={handleGetStarted}
               >
                 Start Free Trial
               </Button>
@@ -86,45 +191,22 @@ const Landing = () => {
             Everything You Need to Succeed
           </h2>
           <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
-            <Card className="border-none bg-background p-6 shadow-sm transition-all hover:shadow-lg hover:-translate-y-1">
-              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-accent/10">
-                <FontAwesomeIcon icon={faBrain} className="h-6 w-6 text-accent" />
-              </div>
-              <h3 className="mb-2 text-xl font-semibold">AI-Powered Recognition</h3>
-              <p className="text-muted-foreground">
-                Simply snap a photo and let our AI identify your food and calculate calories instantly
-              </p>
-            </Card>
-
-            <Card className="border-none bg-background p-6 shadow-sm transition-all hover:shadow-lg hover:-translate-y-1">
-              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-accent/10">
-                <FontAwesomeIcon icon={faUtensils} className="h-6 w-6 text-accent" />
-              </div>
-              <h3 className="mb-2 text-xl font-semibold">Personalized Plans</h3>
-              <p className="text-muted-foreground">
-                Get custom meal plans tailored to your goals, lifestyle, and dietary preferences
-              </p>
-            </Card>
-
-            <Card className="border-none bg-background p-6 shadow-sm transition-all hover:shadow-lg hover:-translate-y-1">
-              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-accent/10">
-                <FontAwesomeIcon icon={faChartLine} className="h-6 w-6 text-accent" />
-              </div>
-              <h3 className="mb-2 text-xl font-semibold">Real-time Tracking</h3>
-              <p className="text-muted-foreground">
-                Track calories, macros, and nutrition throughout the day with live updates
-              </p>
-            </Card>
-
-            <Card className="border-none bg-background p-6 shadow-sm transition-all hover:shadow-lg hover:-translate-y-1">
-              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-accent/10">
-                <FontAwesomeIcon icon={faFireFlameCurved} className="h-6 w-6 text-accent" />
-              </div>
-              <h3 className="mb-2 text-xl font-semibold">Stay Motivated</h3>
-              <p className="text-muted-foreground">
-                Visual progress tracking and health scores keep you engaged and accountable
-              </p>
-            </Card>
+            {FEATURES.map((feature) => (
+              <Card
+                key={feature.title}
+                className="overflow-hidden border-none bg-background p-0 shadow-sm transition-all hover:shadow-lg hover:-translate-y-1"
+              >
+                <img
+                  src={feature.image}
+                  alt={feature.title}
+                  className="h-40 w-full object-cover"
+                />
+                <div className="p-6">
+                  <h3 className="mb-2 text-xl font-semibold">{feature.title}</h3>
+                  <p className="text-muted-foreground">{feature.description}</p>
+                </div>
+              </Card>
+            ))}
           </div>
         </div>
       </section>
@@ -148,58 +230,30 @@ const Landing = () => {
 
       {/* Testimonials */}
       <section id="testimonials" className="bg-muted px-6 py-20">
-        <div className="mx-auto max-w-7xl">
-          <h2 className="mb-12 text-center text-4xl font-bold">What Our Users Say</h2>
-          <div className="grid gap-8 md:grid-cols-2">
-            <Card className="border-none bg-background p-8 shadow-sm transition-all hover:shadow-lg hover:-translate-y-1">
-              <div className="mb-4 flex gap-1">
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <FontAwesomeIcon
-                    key={star}
-                    icon={faStar}
-                    className="h-5 w-5 text-accent"
-                  />
-                ))}
-              </div>
-              <p className="mb-4 text-lg">
-                "I lost 15 lbs in 2 months! I was about to go on Ozempic but decided to give this
-                app a shot and it worked! :)"
-              </p>
-              <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent/10 font-semibold">
-                  MB
-                </div>
-                <div>
-                  <p className="font-semibold">Marley Brylle</p>
-                  <p className="text-sm text-muted-foreground">Verified User</p>
-                </div>
-              </div>
-            </Card>
+        <div className="container z-10 mx-auto">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+            viewport={{ once: true }}
+            className="flex flex-col items-center justify-center max-w-[540px] mx-auto"
+          >
+            <div className="flex justify-center">
+              <div className="border py-1 px-4 rounded-lg">Testimonials</div>
+            </div>
 
-            <Card className="border-none bg-background p-8 shadow-sm transition-all hover:shadow-lg hover:-translate-y-1">
-              <div className="mb-4 flex gap-1">
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <FontAwesomeIcon
-                    key={star}
-                    icon={faStar}
-                    className="h-5 w-5 text-accent"
-                  />
-                ))}
-              </div>
-              <p className="mb-4 text-lg">
-                "The AI food recognition is incredible! It saves me so much time and makes tracking
-                actually enjoyable."
-              </p>
-              <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent/10 font-semibold">
-                  BM
-                </div>
-                <div>
-                  <p className="font-semibold">Benny Marcos</p>
-                  <p className="text-sm text-muted-foreground">Verified User</p>
-                </div>
-              </div>
-            </Card>
+            <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-bold tracking-tighter mt-5">
+              What our users say
+            </h2>
+            <p className="text-center mt-5 opacity-75">
+              See what our customers have to say about us.
+            </p>
+          </motion.div>
+
+          <div className="flex justify-center gap-6 mt-10 [mask-image:linear-gradient(to_bottom,transparent,black_25%,black_75%,transparent)] max-h-[740px] overflow-hidden">
+            <TestimonialsColumn testimonials={firstColumn} duration={15} />
+            <TestimonialsColumn testimonials={secondColumn} className="hidden md:block" duration={19} />
+            <TestimonialsColumn testimonials={thirdColumn} className="hidden lg:block" duration={17} />
           </div>
         </div>
       </section>
@@ -215,7 +269,7 @@ const Landing = () => {
             <Button
               size="lg"
               className="h-14 w-full rounded-xl px-8 text-lg font-semibold sm:w-auto"
-              onClick={() => navigate("/signup")}
+              onClick={handleGetStarted}
             >
               Start Free Trial
             </Button>
@@ -232,11 +286,7 @@ const Landing = () => {
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-border px-6 py-8">
-        <div className="mx-auto max-w-7xl text-center text-muted-foreground">
-          <p>© 2025 CalorieAI. All rights reserved.</p>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 };

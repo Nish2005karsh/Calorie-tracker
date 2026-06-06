@@ -188,6 +188,37 @@ export const logWeight = async (client: any, userId: string, weight: number, dat
     }
 };
 
+// Get the number of water glasses logged for a given date (0 if none)
+export const getWaterGlasses = async (client: any, userId: string, date: string) => {
+    const { data, error } = await client
+        .from('water_logs')
+        .select('glasses')
+        .eq('user_id', userId)
+        .eq('date', date)
+        .maybeSingle();
+
+    if (error) {
+        console.error('Error fetching water log:', error);
+        return 0;
+    }
+    return data?.glasses ?? 0;
+};
+
+// Set (upsert) the number of water glasses for a given date
+export const setWaterGlasses = async (client: any, userId: string, date: string, glasses: number) => {
+    const { error } = await client
+        .from('water_logs')
+        .upsert(
+            { user_id: userId, date, glasses: Math.max(glasses, 0) },
+            { onConflict: 'user_id,date' }
+        );
+
+    if (error) {
+        console.error('Error saving water log:', error);
+        throw error;
+    }
+};
+
 // Fetch weight history
 export const fetchWeightHistory = async (client: any, userId: string) => {
     const { data, error } = await client
