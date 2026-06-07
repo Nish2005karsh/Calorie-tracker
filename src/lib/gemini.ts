@@ -1,4 +1,4 @@
-// Local replacement for the old n8n "Lovable Calorie App Backend" workflow.
+// Local replacement for the old n8n meal-analysis backend workflow.
 //
 // The n8n flow was: webhook -> OpenAI Vision (analyze_image) -> LLM + structured
 // parser (extract_results) -> respond. We now do the whole thing client-side with
