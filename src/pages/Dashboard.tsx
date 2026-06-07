@@ -67,10 +67,7 @@ const Dashboard = () => {
 
       try {
         setIsLoading(true);
-        const token = await getToken({ template: 'supabase' });
-        if (!token) throw new Error('Failed to get Supabase token');
-
-        const supabase = createAuthenticatedClient(token);
+        const supabase = createAuthenticatedClient(getToken);
 
         const [fetchedMeals, fetchedProfile, fetchedStreak, fetchedBadges, fetchedWater] = await Promise.all([
           fetchDailyMeals(supabase, user.id, dateStr),
@@ -99,13 +96,10 @@ const Dashboard = () => {
     if (!weight || !user) return;
     setIsLoggingWeight(true);
     try {
-      const token = await getToken({ template: 'supabase' });
-      if (token) {
-        const supabase = createAuthenticatedClient(token);
-        await logWeight(supabase, user.id, parseFloat(weight), dateStr);
-        setWeight("");
-        toast.success("Weight logged!");
-      }
+      const supabase = createAuthenticatedClient(getToken);
+      await logWeight(supabase, user.id, parseFloat(weight), dateStr);
+      setWeight("");
+      toast.success("Weight logged!");
     } catch (error) {
       console.error("Failed to log weight", error);
       toast.error("Failed to log weight.");
@@ -120,9 +114,7 @@ const Dashboard = () => {
     const previous = water;
     setWater(next); // optimistic
     try {
-      const token = await getToken({ template: 'supabase' });
-      if (!token) throw new Error('Failed to get Supabase token');
-      const supabase = createAuthenticatedClient(token);
+      const supabase = createAuthenticatedClient(getToken);
       await setWaterGlasses(supabase, user.id, dateStr, next);
     } catch (error) {
       console.error("Failed to update water", error);
@@ -136,9 +128,7 @@ const Dashboard = () => {
     const previous = meals;
     setMeals((prev) => prev.filter((m) => m.id !== mealId)); // optimistic
     try {
-      const token = await getToken({ template: 'supabase' });
-      if (!token) throw new Error('Failed to get Supabase token');
-      const supabase = createAuthenticatedClient(token);
+      const supabase = createAuthenticatedClient(getToken);
       await deleteMeal(supabase, mealId);
       toast.success("Meal deleted");
     } catch (error) {

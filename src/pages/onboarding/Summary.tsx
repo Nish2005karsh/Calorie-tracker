@@ -60,10 +60,7 @@ const Summary = () => {
       // 1. Try to save the computed plan to Supabase. If the backend is
       //    unreachable we still let the user proceed (don't trap them here).
       try {
-        const token = await getToken({ template: 'supabase' });
-        if (!token) throw new Error('Failed to get Supabase token');
-
-        const supabase = createAuthenticatedClient(token);
+        const supabase = createAuthenticatedClient(getToken);
         await updateUserProfile(supabase, user.id, {
           gender,
           workout_frequency: workoutFrequency,

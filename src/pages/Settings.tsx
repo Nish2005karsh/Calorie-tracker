@@ -41,9 +41,7 @@ const Settings = () => {
       if (!isUserLoaded || !user) return;
       try {
         setIsLoading(true);
-        const token = await getToken({ template: "supabase" });
-        if (!token) throw new Error("Failed to get Supabase token");
-        const supabase = createAuthenticatedClient(token);
+        const supabase = createAuthenticatedClient(getToken);
         const p = await fetchUserProfile(supabase, user.id);
         setProfile(p);
         if (p) {
@@ -80,9 +78,7 @@ const Settings = () => {
     if (!user) return;
     setIsSaving(true);
     try {
-      const token = await getToken({ template: "supabase" });
-      if (!token) throw new Error("Failed to get Supabase token");
-      const supabase = createAuthenticatedClient(token);
+      const supabase = createAuthenticatedClient(getToken);
 
       await updateUserProfile(supabase, user.id, {
         calorie_goal: num(form.calorie_goal) ?? 0,

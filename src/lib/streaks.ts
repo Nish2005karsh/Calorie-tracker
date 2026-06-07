@@ -25,9 +25,9 @@ export const getStreak = async (client: any, userId: string) => {
         .from('user_streaks')
         .select('*')
         .eq('user_id', userId)
-        .single();
+        .maybeSingle(); // no row -> null (avoids the 406 that .single() throws)
 
-    if (error && error.code !== 'PGRST116') { // PGRST116 is "Row not found"
+    if (error) {
         console.error('Error fetching streak:', error);
         return null;
     }

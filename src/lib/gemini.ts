@@ -137,7 +137,17 @@ export const analyzeMeal = async (imageFile: File): Promise<MealAnalysis> => {
     if (!response.ok) {
         const errorText = await response.text();
         console.error("Gemini error response:", errorText);
-        throw new Error(`Failed to analyze meal: ${response.status}`);
+
+        // 429 = quota / rate limit exceeded. Surface a clear message so it's
+        // obvious the AI API limit is exhausted (not some other failure).
+        if (response.status === 429) {
+            throw new Error("API Exhausted — the Gemini API quota/rate limit has been reached. Please try again later or upgrade the API plan.");
+        }
+        // 400/403 usually means a missing or invalid API key.
+        if (response.status === 400 || response.status === 403) {
+            throw new Error("AI request rejected — check that VITE_GEMINI_API_KEY is set and valid.");
+        }
+        throw new Error(`Failed to analyze meal (error ${response.status}).`);
     }
 
     const result = await response.json();

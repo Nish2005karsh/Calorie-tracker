@@ -9,6 +9,7 @@ import { useOnboarding } from "@/hooks/useOnboarding";
 import { motion } from "motion/react";
 import { TestimonialsColumn, Testimonial } from "@/components/ui/testimonials-columns-1";
 import Footer from "@/components/Footer";
+import HowItWorks from "@/components/HowItWorks";
 
 const FEATURES = [
   {
@@ -183,6 +184,9 @@ const Landing = () => {
           </div>
         </div>
       </section>
+
+      {/* How It Works */}
+      <HowItWorks />
 
       {/* Features Section */}
       <section id="features" className="bg-muted px-6 py-20">

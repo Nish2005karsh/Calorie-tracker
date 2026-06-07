@@ -57,10 +57,7 @@ const AddMeal = () => {
     if (!user) return;
     setIsSaving(true);
     try {
-      const token = await getToken({ template: "supabase" });
-      if (!token) throw new Error("Failed to get Supabase token");
-
-      const supabase = createAuthenticatedClient(token);
+      const supabase = createAuthenticatedClient(getToken);
       await addMeal(supabase, user.id, meal);
       await updateStreak(supabase, user.id, new Date());
 
@@ -83,7 +80,8 @@ const AddMeal = () => {
       } catch (error) {
         console.error("Analysis failed", error);
         toast.error(
-          error instanceof Error ? error.message : "Failed to analyze the image. Please try again."
+          error instanceof Error ? error.message : "Failed to analyze the image. Please try again.",
+          { duration: 6000 }
         );
       } finally {
         setIsLoading(false);

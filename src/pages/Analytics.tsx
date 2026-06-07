@@ -43,10 +43,7 @@ const Analytics = () => {
 
             try {
                 setIsLoading(true);
-                const token = await getToken({ template: 'supabase' });
-                if (!token) throw new Error('Failed to get Supabase token');
-
-                const supabase = createAuthenticatedClient(token);
+                const supabase = createAuthenticatedClient(getToken);
 
                 const [profile, weekly, monthly, weight] = await Promise.all([
                     fetchUserProfile(supabase, user.id),

@@ -31,10 +31,7 @@ const Calendar = () => {
 
             try {
                 setIsLoading(true);
-                const token = await getToken({ template: 'supabase' });
-                if (!token) throw new Error('Failed to get Supabase token');
-
-                const supabase = createAuthenticatedClient(token);
+                const supabase = createAuthenticatedClient(getToken);
 
                 // Fetch profile for calorie goal
                 const profile = await fetchUserProfile(supabase, user.id);
@@ -61,13 +58,10 @@ const Calendar = () => {
         setIsLoadingMeals(true);
         try {
             if (user) {
-                const token = await getToken({ template: 'supabase' });
-                if (token) {
-                    const supabase = createAuthenticatedClient(token);
-                    const dateStr = format(date, 'yyyy-MM-dd');
-                    const meals = await fetchDailyMeals(supabase, user.id, dateStr);
-                    setSelectedMeals(meals);
-                }
+                const supabase = createAuthenticatedClient(getToken);
+                const dateStr = format(date, 'yyyy-MM-dd');
+                const meals = await fetchDailyMeals(supabase, user.id, dateStr);
+                setSelectedMeals(meals);
             }
         } catch (error) {
             console.error("Failed to fetch meals for date", error);

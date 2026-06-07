@@ -149,3 +149,4 @@ CREATE POLICY "Users can update their own water logs" ON water_logs
   FOR UPDATE USING (user_id = (auth.jwt() ->> 'sub'));
 CREATE POLICY "Users can delete their own water logs" ON water_logs
   FOR DELETE USING (user_id = (auth.jwt() ->> 'sub'));
+  

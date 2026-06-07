@@ -123,7 +123,7 @@ export const updateUserProfile = async (client: any, userId: string, updates: Pa
         .from('user_profiles')
         .select('id')
         .eq('user_id', userId)
-        .single();
+        .maybeSingle();
 
     let data, error;
 

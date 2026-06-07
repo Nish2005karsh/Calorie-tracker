@@ -13,16 +13,15 @@ if (!supabaseUrl || !supabaseAnonKey) {
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-export const createAuthenticatedClient = (supabaseAccessToken: string) => {
+// Create a client authenticated as the current Clerk user using Supabase's
+// official third-party `accessToken` option. Pass Clerk's `getToken` function
+// (from useAuth); supabase-js calls it to attach the user's JWT on every
+// request. NOTE: do NOT manually set the Authorization header here — with the
+// new `sb_publishable_...` keys, supabase-js would otherwise send the opaque
+// publishable key as the bearer token, which PostgREST can't decode as a JWT.
+export const createAuthenticatedClient = (getToken: () => Promise<string | null>) => {
     return createClient(supabaseUrl!, supabaseAnonKey!, {
-        global: {
-            headers: {
-                Authorization: `Bearer ${supabaseAccessToken}`,
-            },
-        },
-        // These per-request clients don't manage their own session; disabling
-        // session persistence avoids the "Multiple GoTrueClient instances"
-        // warning from sharing the same storage key as the base client.
+        accessToken: async () => (await getToken()) ?? null,
         auth: {
             persistSession: false,
             autoRefreshToken: false,
