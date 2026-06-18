@@ -6,6 +6,9 @@
 // shape, so the vision analysis AND the JSON-cleanup step happen in one request.
 
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY as string | undefined;
+// Demo mode: when true, skip the live API and return realistic mock data.
+// Useful when the API quota is exhausted (e.g. for a presentation/video).
+const USE_MOCK_ANALYSIS = import.meta.env.VITE_USE_MOCK_ANALYSIS === "true";
 // Override the model via VITE_GEMINI_MODEL if you like; this default is fast,
 // vision-capable, and available on the free tier.
 const GEMINI_MODEL = (import.meta.env.VITE_GEMINI_MODEL as string | undefined) || "gemini-2.0-flash";
@@ -104,6 +107,15 @@ const fileToInlineData = (file: File) =>
 
 // Analyze a meal image and return structured nutrition data.
 export const analyzeMeal = async (imageFile: File): Promise<MealAnalysis> => {
+    // Demo mode — return mock data after a short, realistic delay.
+    if (USE_MOCK_ANALYSIS) {
+        const { getMockAnalysis } = await import("./mockMeals");
+        await new Promise((resolve) => setTimeout(resolve, 1400)); // simulate "Analyzing..."
+        const result = getMockAnalysis(imageFile);
+        console.log("=== AI ANALYSIS (mock demo mode) ===", result);
+        return result;
+    }
+
     if (!GEMINI_API_KEY) {
         throw new Error(
             "Missing VITE_GEMINI_API_KEY. Add it to your .env.local and restart the dev server."
